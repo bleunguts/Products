@@ -1,58 +1,143 @@
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.VisualStudio.TestPlatform.CommunicationUtilities;
+using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 using NUnit.Framework;
+using Products.API.Entities;
+using Products.API.Services;
+using Products.API.Specs.Drivers;
+using Products.API.Specs.Helpers;
+using Products.Model;
 using System;
+using System.Linq;
+using System.Net;
+using System.Text;
 using TechTalk.SpecFlow;
 
-namespace Products.API.Specs.StepDefinitions
+namespace Products.API.Specs.StepDefinitions;
+
+[Binding]
+public class ProductsStepDefinitions
 {
-    [Binding]
-    public class ProductsStepDefinitions
+    private readonly ScenarioContext _scenarioContext;
+    private readonly IProductJsonDataStoreService _jsonDataStore;
+    private readonly HttpClient _webClient;
+
+    private readonly List<Product> someProducts = ProductHelper.GenerateProducts(3).ToList();
+
+    public ProductsStepDefinitions(ScenarioContext scenarioContext, WebDriver webDriver, IProductJsonDataStoreService jsonDataStore)            
     {
-        private const string BaseAddress = "http://localhost/";
-        private readonly WebApplicationFactory<Startup> _webApplicationFactory;
-        private HttpClient _webClient;
-        private HttpResponseMessage _response;
+        _scenarioContext = scenarioContext;
+        _jsonDataStore = jsonDataStore;
+        _webClient = webDriver.GetWebClient();
+    }
 
-        public ProductsStepDefinitions(WebApplicationFactory<Startup> webApplicationFactory)
-        {
-            _webApplicationFactory = webApplicationFactory;
-        }
+    [When(@"Creating a new Product with name '([^']*)'")]
+    public async Task WhenCreatingANewProductWithName(string aProductName)
+    {
+        var productDto = new ProductDto { Name = aProductName };
+        HttpResponseMessage response = await PostCreateProductRequest(productDto);
 
-        [Given(@"I am a web client")]
-        public void IamAWebClient()
-        {
-            _webClient = _webApplicationFactory.CreateDefaultClient(new Uri(BaseAddress));
-        }
+        _scenarioContext["Response"] = response;
+    }      
 
-        [When(@"accessing health endpoint (.*)")]
-        public async Task WhenAccessingHealthEndpointHealthCheckAsync(string endpoint)
-        {
-            _response = await _webClient.GetAsync($"{endpoint}");
-        }
+    [When(@"Creating a new Product with name '([^']*)' with colour '([^']*)'")]
+    public async Task WhenCreatingANewProductWithName(string aProductName, string colour)
+    {
+        var productDto = new ProductDto { Name = aProductName, Colour = colour};
+        HttpResponseMessage response = await PostCreateProductRequest(productDto);
 
-        [Then(@"the response should be valid")]
-        public async Task ThenTheResponseShouldBeValidAsync()
-        {
-            Assert.That(_response.IsSuccessStatusCode, Is.True);
+        _scenarioContext["Response"] = response;
+    }
 
-            var responseContent = await _response.Content.ReadAsStringAsync();
-            Assert.That(responseContent, Is.EqualTo("Healthy"));
-        }
+    [When(@"Creating a new Product without required arguments")]
+    public async Task WhenCreatingANewProduct()
+    {
+        var productDto = new ProductDto();
+        HttpResponseMessage response = await PostCreateProductRequest(productDto);
 
-        [When(@"accessing the default endpoint (.*)")]
-        public async Task WhenAccessingTheDefaultEndpointAsync(string endpoint)
-        {
-            _response = await _webClient.GetAsync($"{endpoint}");
-        }
+        _scenarioContext["Response"] = response;
+    }
 
-        [Then(@"the result should return (.*)")]
-        public async Task ThenTheResultShouldReturnMessageAsync(string message)
-        {
-            Assert.That(_response.IsSuccessStatusCode, Is.True);
+    [Given(@"there are some products in the repository")]
+    public void GivenThereAreSomeProductsInTheRepository()
+    {            
+        _jsonDataStore.CreateProducts(someProducts);
+    }
 
-            var responseContent = await _response.Content.ReadAsStringAsync();
-            Assert.That(responseContent, Is.EqualTo(message));
-        }
+    [Then(@"the result should return some products")]
+    public async Task ThenTheResultShouldReturnSomeProducts()
+    {
+        List<ProductDto> productDtos = await GetProductsFromCachedResponse();
+
+        Assert.That(productDtos.Count, Is.EqualTo(3));
+        Assert.That(productDtos.Select(x => x.Name), Is.EquivalentTo(someProducts.Select(x => x.Name)));
+    }
+
+    [Given(@"there is a '([^']*)' product in the repository")]
+    public void GivenThereIsAColouredProductInTheRepository(string colour)
+    {            
+        var aColouredProduct = new Product { Name = "Coloured Product", Colour = colour };
+        var productsWithAColouredProduct = ProductHelper.GenerateProducts(3, "anotherColour").Concat(new[] { aColouredProduct });
+
+        _jsonDataStore.CreateProducts(productsWithAColouredProduct);            
+    }
+
+    [Then(@"the result should return a product which has colour '([^']*)'")]
+    public async void ThenTheResultShouldReturnAProductWhichHasColour(string colour)
+    {
+        var products = await GetProductsFromCachedResponse();
+
+        Assert.That(products.Count(p => p.Colour.Equals(colour, StringComparison.InvariantCultureIgnoreCase)), Is.EqualTo(1));
+    }
+
+    [Then(@"the result should return no products")]
+    public async Task ThenTheResultShouldReturnNoProductsAsync()
+    {
+        List<ProductDto> productDtos = await GetProductsFromCachedResponse();
+
+        Assert.That(productDtos, Is.Empty); 
+    }
+
+    [Then(@"the response should have a '([^']*)' http status code")]
+    public void ThenTheResponseShouldHaveAHttpStatusCode(string statusCode)
+    {
+        var httpStatusCode = Enum.Parse<HttpStatusCode>(statusCode);
+
+        var response = _scenarioContext["Response"].As<HttpResponseMessage>();
+        Assert.That(response.StatusCode, Is.EqualTo(httpStatusCode));
+    }
+
+    [Then(@"the response should contain error message detailing problem '([^']*)'")]
+    public async Task ThenTheResponseShouldContainErrorMessageDetailingProblemAsync(string error)
+    {
+        var response = _scenarioContext["Response"].As<HttpResponseMessage>();
+
+        var responseText = await response.Content.ReadAsStringAsync();
+        Assert.That(responseText.Contains(error));
+    }
+
+    [Then(@"the response should return a 'NotFound' http status code and an error message that contains '([^']*)'")]
+    public async void ThenTheResultShouldReturnANotFound(string error)
+    {
+        var response = _scenarioContext["Response"].As<HttpResponseMessage>();
+        var responseText = await response.Content.ReadAsStringAsync();
+
+        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+        Assert.That(responseText.Contains(error), Is.True, responseText);
+
+    }
+
+
+    private async Task<HttpResponseMessage> PostCreateProductRequest(ProductDto productDto)
+    {
+        var jsonData = JsonConvert.SerializeObject(productDto);
+        var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
+        var response = await _webClient.PostAsync("api/Products/CreateProduct", content);
+        return response;
+    }
+    private async Task<List<ProductDto>> GetProductsFromCachedResponse()
+    {
+        var response = _scenarioContext["Response"].As<HttpResponseMessage>();
+        var json = await response.Content.ReadAsStringAsync();
+        return JsonConvert.DeserializeObject<List<ProductDto>>(json);
     }
 }

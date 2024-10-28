@@ -1,3 +1,33 @@
-# For more info on HTTP files go to https://aka.ms/vs/httpfile
-GET https://localhost:7152/api/Products
+@address=localhost:7152
+@bearer=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJJZCI6IjkwZDdiNmM0LWFjMmEtNDA5Zi1iZDMwLWI1YjQ5YWUxODc4ZiIsIm5iZiI6MTczMDA4MTQ0NSwiZXhwIjoxNzMwNjg2MjQ1LCJpYXQiOjE3MzAwODE0NDUsImlzcyI6Imh0dHBzOi8vbG9jYWxob3N0IiwiYXVkIjoiaHR0cHM6Ly9sb2NhbGhvc3QifQ.11KKJWPyJL5G9H4LyzjuO2hIU_HXoGi7EsbDEaHvUuM
 
+### Health Check 
+GET https://{{address}}/healthCheck
+
+### Get a JSON auth key
+GET https://{{address}}/api/auth
+
+### Products Ping
+GET https://{{address}}/api/Products/ping
+Authorization: Bearer {{bearer}}
+
+### Create Product
+POST https://{{address}}/api/Products/CreateProduct
+Authorization: Bearer {{bearer}}
+Content-Type: application/json
+{
+  "Name": "aNewProduct5",
+  "Colour": "Black"  
+}
+
+### Get Product List
+GET https://{{address}}/api/Products
+Authorization: Bearer {{bearer}}
+
+### Get Product Filtered By Colour
+GET https://{{address}}/api/Products?FilterColourBy=AliceBlue
+Authorization: Bearer {{bearer}}
+
+### Options
+OPTIONS https://{{address}}/api/Products
+Authorization: Bearer {{bearer}}
