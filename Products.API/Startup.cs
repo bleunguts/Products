@@ -5,8 +5,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.IdentityModel.Logging;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
+using Products.API;
 using Products.API.Services;
+using System.Drawing;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -22,7 +25,10 @@ public class Startup
 
     public void ConfigureServices(IServiceCollection services)
     {
-        services.AddControllers();
+        services.AddControllers().AddJsonOptions(options => 
+        {
+            options.JsonSerializerOptions.Converters.Add(new ColorJsonConverter());
+        });
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen(options =>
         {
@@ -42,6 +48,11 @@ public class Startup
             options.AddSecurityRequirement(new OpenApiSecurityRequirement()
             {
                 { jwtScheme, Array.Empty<string>()}
+            });
+            options.MapType(typeof(Color), () => new OpenApiSchema
+            {
+                Type="string",
+                Example = new OpenApiString(Color.Gold.Name)
             });
         });
         services.AddHealthChecks();

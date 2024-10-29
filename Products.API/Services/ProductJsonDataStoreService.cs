@@ -10,14 +10,14 @@ public interface IProductJsonDataStoreService
     Task CreateProduct(Product newProduct);
     Task CreateProducts(IEnumerable<Product> someProducts);
     IEnumerable<Product> GetProducts();
-    IEnumerable<Product> GetProductsFilterColourBy(string filterColourBy);
-    string BackingJsonFilename { get; }
-    void Drop();
+    IEnumerable<Product> GetProductsFilterColourBy(string filterColourBy);    
+    Task DropDataStore_UsedForTests();
 }
 
 public class ProductJsonDataStoreService : IProductJsonDataStoreService
 {
     private readonly DataStore _store;
+    private readonly string _backingJsonFilename;
 
     public ProductJsonDataStoreService(IOptions<ApplicationSettings> options)
     {
@@ -25,10 +25,8 @@ public class ProductJsonDataStoreService : IProductJsonDataStoreService
         
         _store = new DataStore(filename);   
         
-        BackingJsonFilename = filename;
-    }
-    
-    public string BackingJsonFilename { get; }
+        _backingJsonFilename = filename;
+    }       
 
     public async Task CreateProducts(IEnumerable<Product> products)
     {
@@ -41,11 +39,20 @@ public class ProductJsonDataStoreService : IProductJsonDataStoreService
 
     public async Task CreateProduct(Product newProduct)
     {
-        var collection = _store.GetCollection<Product>();
-        if (!await collection.InsertOneAsync(newProduct))
+        bool isSuccess = false;
+        try
         {
-            throw new Exception($"Cannot insert product {newProduct.Name} with Id {newProduct.Id}");
-        };        
+            var collection = _store.GetCollection<Product>();
+            isSuccess = await collection.InsertOneAsync(newProduct);            
+        }
+        catch
+        {
+            throw;
+        }
+        if (!isSuccess)
+        {
+            throw new Exception($"Cannot insert product {newProduct.Name} with Id {newProduct.IdKey}");
+        }
     }
 
     public IEnumerable<Product> GetProducts()
@@ -56,17 +63,26 @@ public class ProductJsonDataStoreService : IProductJsonDataStoreService
         return products;
     }
 
-    public IEnumerable<Product> GetProductsFilterColourBy(string filterColourBy)
-    {
-        var collection = _store.GetCollection<Product>();
-        var products = collection.AsQueryable().Where(p => p.Colour.Equals(filterColourBy, StringComparison.InvariantCultureIgnoreCase));
+    public IEnumerable<Product> GetProductsFilterColourBy(string filterColourBy) => 
+        GetProducts()
+            .Where(p => p.Colour.Equals(filterColourBy, StringComparison.InvariantCultureIgnoreCase));
 
-        return products;
-    }
-
-    public void Drop()
+    public async Task DropDataStore_UsedForTests()
     {
-        FileHelper.ForceDelete(BackingJsonFilename);
-        _store.Reload();
+        bool isSuccess = false;
+        try
+        {
+            _store.Reload();
+            var keys = _store.GetKeys();
+            foreach (var kvp in keys)
+            {
+                isSuccess = await _store.DeleteItemAsync(kvp.Key);
+            }
+            _store.Reload();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Failed to Drop data store {ex.Message}");
+        }      
     }    
 }

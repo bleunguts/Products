@@ -16,8 +16,8 @@ POST https://{{address}}/api/Products/CreateProduct
 Authorization: Bearer {{bearer}}
 Content-Type: application/json
 {
-  "Name": "aNewProduct5",
-  "Colour": "Black"  
+  "Name": "aProductName001",
+  "Colour": "Gold"  
 }
 
 ### Get Product List
@@ -25,9 +25,6 @@ GET https://{{address}}/api/Products
 Authorization: Bearer {{bearer}}
 
 ### Get Product Filtered By Colour
-GET https://{{address}}/api/Products?FilterColourBy=AliceBlue
+GET https://{{address}}/api/Products?FilterColourBy=Gold
 Authorization: Bearer {{bearer}}
 
-### Options
-OPTIONS https://{{address}}/api/Products
-Authorization: Bearer {{bearer}}

@@ -27,7 +27,7 @@ public class AuthController: ControllerBase
     [HttpGet]
     public ActionResult<string> GetJwtBearerKey()
     {
-        // TODO: add simple header check here ??
+        // TODO: add simple header check here with a cleartext u/p ??
         var key = Encoding.UTF8.GetBytes(_jwtKey);
         var tokenDescriptor = new SecurityTokenDescriptor
         {

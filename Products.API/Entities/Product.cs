@@ -4,7 +4,8 @@ namespace Products.API.Entities;
 
 public class Product
 {    
-    public string Id { get; set; } = ShortGuid.GuidToShortGuid(Guid.Empty);
+    // Note that 'Id' clashes with JsonDataStoreService so call it something else
+    public string IdKey { get; set; } = Guids.NewGuidString();
     public string Name { get; set; } = string.Empty;
     public string Colour { get; set; } = string.Empty;
 }

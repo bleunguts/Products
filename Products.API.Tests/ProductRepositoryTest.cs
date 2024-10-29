@@ -33,11 +33,11 @@ public class ProductRepositoryTest
                      .Callback<Product>((obj) => actualProduct = obj);
 
         // act
-        _repository.AddProduct(new Entities.Product { Id = Guid.Empty.ToString().Replace("-",""), Name = theName, Colour = theColour });
+        _repository.AddProduct(new Entities.Product { IdKey = Guid.Empty.ToGuidString(), Name = theName, Colour = theColour });
         
         // assert
         _dataStore.Verify(d => d.CreateProduct(It.IsAny<Product>()), Times.Once);
-        Assert.That(actualProduct.Id, Is.Not.EqualTo(Guid.Empty.ToString().Replace("-","")));
+        Assert.That(actualProduct.IdKey, Is.Not.EqualTo(Guid.Empty.ToGuidString()));
         Assert.That(actualProduct.Name, Is.EqualTo(theName));
         Assert.That(actualProduct.Colour, Is.EqualTo(theColour));
     }

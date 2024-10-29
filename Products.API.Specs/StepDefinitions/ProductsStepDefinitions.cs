@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
 using NUnit.Framework;
 using Products.API.Entities;
 using Products.API.Services;
@@ -7,9 +6,11 @@ using Products.API.Specs.Drivers;
 using Products.API.Specs.Helpers;
 using Products.Model;
 using System;
+using System.Drawing;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using TechTalk.SpecFlow;
 
 namespace Products.API.Specs.StepDefinitions;
@@ -42,7 +43,7 @@ public class ProductsStepDefinitions
     [When(@"Creating a new Product with name '([^']*)' with colour '([^']*)'")]
     public async Task WhenCreatingANewProductWithName(string aProductName, string colour)
     {
-        var productDto = new ProductDto { Name = aProductName, Colour = colour};
+        var productDto = new ProductDto { Name = aProductName, Colour = Color.FromName(colour)};
         HttpResponseMessage response = await PostCreateProductRequest(productDto);
 
         _scenarioContext["Response"] = response;
@@ -76,7 +77,7 @@ public class ProductsStepDefinitions
     public void GivenThereIsAColouredProductInTheRepository(string colour)
     {            
         var aColouredProduct = new Product { Name = "Coloured Product", Colour = colour };
-        var productsWithAColouredProduct = ProductHelper.GenerateProducts(3, "anotherColour").Concat(new[] { aColouredProduct });
+        var productsWithAColouredProduct = ProductHelper.GenerateProducts(25, "anotherColour").Concat(new[] { aColouredProduct });
 
         _jsonDataStore.CreateProducts(productsWithAColouredProduct);            
     }
@@ -86,7 +87,7 @@ public class ProductsStepDefinitions
     {
         var products = await GetProductsFromCachedResponse();
 
-        Assert.That(products.Count(p => p.Colour.Equals(colour, StringComparison.InvariantCultureIgnoreCase)), Is.EqualTo(1));
+        Assert.That(products.Count(p => p.Colour.Equals(Color.FromName(colour))), Is.EqualTo(1));
     }
 
     [Then(@"the result should return no products")]
@@ -126,10 +127,9 @@ public class ProductsStepDefinitions
 
     }
 
-
     private async Task<HttpResponseMessage> PostCreateProductRequest(ProductDto productDto)
     {
-        var jsonData = JsonConvert.SerializeObject(productDto);
+        var jsonData = JsonSerializer.Serialize(productDto);
         var content = new StringContent(jsonData, Encoding.UTF8, "application/json");
         var response = await _webClient.PostAsync("api/Products/CreateProduct", content);
         return response;
@@ -138,6 +138,6 @@ public class ProductsStepDefinitions
     {
         var response = _scenarioContext["Response"].As<HttpResponseMessage>();
         var json = await response.Content.ReadAsStringAsync();
-        return JsonConvert.DeserializeObject<List<ProductDto>>(json);
+        return JsonSerializer.Deserialize<List<ProductDto>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true});        
     }
 }

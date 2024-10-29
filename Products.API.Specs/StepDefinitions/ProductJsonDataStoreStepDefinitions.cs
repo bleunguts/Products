@@ -9,31 +9,36 @@ using TechTalk.SpecFlow;
 
 namespace Products.API.Specs.StepDefinitions
 {
-    [Binding]
+    [Binding]    
     public class ProductJsonDataStoreStepDefinitions
     {
         private readonly ScenarioContext _scenarioContext;
-        private readonly IProductJsonDataStoreService _productJsonDataStore;        
+        private readonly IProductJsonDataStoreService _productJsonDataStore;
+        private readonly JsonDataStorePeekService _jsonFileService;
 
-        public ProductJsonDataStoreStepDefinitions(ScenarioContext scenarioContext, IProductJsonDataStoreService productJsonDataStore)
+        public ProductJsonDataStoreStepDefinitions(
+            ScenarioContext scenarioContext, 
+            IProductJsonDataStoreService productJsonDataStore,
+            JsonDataStorePeekService jsonFileService)
         {
             _scenarioContext = scenarioContext;
             _productJsonDataStore = productJsonDataStore;
+            _jsonFileService = jsonFileService;
         }
 
         [Given(@"there are no products in the repository")]
-        public void GivenEmptyDataStore()
+        public async Task GivenEmptyDataStore()
         {
-            _productJsonDataStore.Drop();
+            await _productJsonDataStore.DropDataStore_UsedForTests();
         }
 
         [When(@"Creating a new Product with name '([^']*)' and colour '([^']*)'")]
         public async Task WhenCreatingANewProductWithNameAndColour(string aNewProduct, string colour)
         {
-            var newProduct = new Product { Id = ShortGuid.NewGuid(), Name = aNewProduct, Colour = colour };
+            var newProduct = new Product { IdKey = Guids.NewGuidString(), Name = aNewProduct, Colour = colour };
             await _productJsonDataStore.CreateProduct(newProduct);
 
-            var products = JsonFileHelper.GetProductsFrom(_productJsonDataStore.BackingJsonFilename);
+            var products = _jsonFileService.ExtractProducts();
             _scenarioContext["Products"] = products;
         }
     

@@ -22,7 +22,7 @@ public class ProductRepository : IProductRepository
     {
         if(productEntity == null) throw new ArgumentNullException(nameof(productEntity));
 
-        productEntity.Id = ShortGuid.NewGuid();
+        productEntity.IdKey = Guids.NewGuidString();
 
         _dataStore.CreateProduct(productEntity);    
     }
