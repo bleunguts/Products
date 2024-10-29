@@ -8,3 +8,5 @@
 	*	Appropriate unit and integration tests
 *	Include a simple architecture diagram showing how this products service could form part of a distributed or microservices event-driven architecture with a few other components shown (e.g. orders, payments)
 *	Push to a public repo on GitHub and send the link
+
+![Diagram](ProductsApi.jpg)
